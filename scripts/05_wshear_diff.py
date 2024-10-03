@@ -61,6 +61,16 @@ def plotCBAR(cbar_ax, label, norm, cmap='jet'):
                   aspect=30,)
     cb1.ax.tick_params(labelsize=10)
     cb1.set_label(label, fontsize=15)
+
+def calculate_whsear(da):
+    da_ua850 = da['ua'].sel(plev=850).mean(dim='time')
+    da_va850 = da['va'].sel(plev=850).mean(dim='time')
+    da_ua300 = da['ua'].sel(plev=300).mean(dim='time')
+    da_va300 = da['va'].sel(plev=300).mean(dim='time')
+    da_ushear = da_ua300 - da_ua850
+    da_vshear = da_va300 - da_va850
+    da_wshear = np.sqrt(da_ushear**2 + da_vshear**2)
+    return da_wshear
 #---------------------------------------------------------------------------------
 
 #---------------------------------------------------------------------------------
@@ -74,13 +84,7 @@ era5 = xr.open_dataset(dir / 'nc/merged_files/ERA5_20112015_remapbil.nc')
 ref = era5.drop(['lat', 'lon'])
 ref = era5.assign_coords({'lon': dsexp43.lon, 'lat': dsexp43.lat})
 #WHSEAR
-ref_ua850 = ref['ua'].sel(plev=850).mean(dim='time')
-ref_va850 = ref['va'].sel(plev=850).mean(dim='time')
-ref_ua300 = ref['ua'].sel(plev=300).mean(dim='time')
-ref_va300 = ref['va'].sel(plev=300).mean(dim='time')
-ref_ushear = ref_ua300 - ref_ua850
-ref_vshear = ref_va300 - ref_va850
-ref_wshear = np.sqrt(ref_ushear**2 + ref_vshear**2)
+ref_wshear = calculate_whsear(ref)
 
 exps = ['exp43', #1
         'exp31', #2
@@ -107,13 +111,7 @@ for exp in tqdm(exps):
     print(f'calculating {exp} : WSHEAR')
     ds = xr.open_dataset(dir / f'nc/merged_files/MERGED_{exp}_6hourly.nc')
     #WSHEAR
-    model_ua850 = ds['ua'].sel(plev=850).mean(dim='time')
-    model_va850 = ds['va'].sel(plev=850).mean(dim='time')
-    model_ua300 = ds['ua'].sel(plev=300).mean(dim='time')
-    model_va300 = ds['va'].sel(plev=300).mean(dim='time')
-    model_ushear = model_ua300 - model_ua850
-    model_vshear = model_va300 - model_va850
-    model_wshear= np.sqrt(model_ushear**2 + model_vshear**2)
+    model_wshear= calculate_whsear(ds)
     bias_wshear = model_wshear - ref_wshear
     bias_wshears.append(bias_wshear)
     scorr = xr.corr(model_wshear, ref_wshear, dim=['lon', 'lat'])

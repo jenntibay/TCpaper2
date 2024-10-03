@@ -62,6 +62,18 @@ def plotCBAR(cbar_ax, label, norm, cmap='jet'):
                   aspect=30,)
     cb1.ax.tick_params(labelsize=10)
     cb1.set_label(label, fontsize=15)
+
+def calculate_tmean(da):
+    da_ta850 = da['ta'].sel(plev=850).mean(dim='time')
+    da_ta850 = np.subtract(da_ta850, 273.15)
+    da_ta700 = da['ta'].sel(plev=700).mean(dim='time')
+    da_ta700 = np.subtract(da_ta700, 273.15)
+    da_ta500 = da['ta'].sel(plev=500).mean(dim='time')
+    da_ta500 = np.subtract(da_ta500, 273.15)
+    da_ta300 = da['ta'].sel(plev=300).mean(dim='time')
+    da_ta300 = np.subtract(da_ta300, 273.15)
+    da_tmean = (da_ta850 + da_ta700 + da_ta500 + da_ta300)/4
+    return da_tmean
 #---------------------------------------------------------------------------------
 
 #---------------------------------------------------------------------------------
@@ -75,15 +87,7 @@ era5 = xr.open_dataset(dir / 'nc/merged_files/ERA5_20112015_remapbil.nc')
 ref = era5.drop(['lat', 'lon'])
 ref = era5.assign_coords({'lon': dsexp43.lon, 'lat': dsexp43.lat})
 #TEMP
-ref_ta850 = ref['ta'].sel(plev=850).mean(dim='time')
-ref_ta850 = np.subtract(ref_ta850, 273.15)
-ref_ta700 = ref['ta'].sel(plev=700).mean(dim='time')
-ref_ta700 = np.subtract(ref_ta700, 273.15)
-ref_ta500 = ref['ta'].sel(plev=500).mean(dim='time')
-ref_ta500 = np.subtract(ref_ta500, 273.15)
-ref_ta300 = ref['ta'].sel(plev=300).mean(dim='time')
-ref_ta300 = np.subtract(ref_ta300, 273.15)
-ref_tmean = (ref_ta850 + ref_ta700 + ref_ta500 + ref_ta300)/4
+ref_tmean = calculate_tmean(ref)
 
 exps = ['exp43', #1
         'exp31', #2
@@ -110,15 +114,7 @@ for exp in tqdm(exps):
     print(f'calculating {exp} : TEMP')
     ds = xr.open_dataset(dir / f'nc/merged_files/MERGED_{exp}_6hourly.nc')
     #TMEAN
-    model_ta850 = ds['ta'].sel(plev=850).mean(dim='time')
-    model_ta850 = np.subtract(model_ta850, 273.15)
-    model_ta700 = ds['ta'].sel(plev=700).mean(dim='time')
-    model_ta700 = np.subtract(model_ta700, 273.15)
-    model_ta500 = ds['ta'].sel(plev=500).mean(dim='time')
-    model_ta500 = np.subtract(model_ta500, 273.15)
-    model_ta300 = ds['ta'].sel(plev=300).mean(dim='time')
-    model_ta300 = np.subtract(model_ta300, 273.15)
-    model_tmean = (model_ta850 + model_ta700 + model_ta500 + model_ta300)/4
+    model_tmean = calculate_tmean(ds)
     bias_tmean = model_tmean - ref_tmean
     bias_tmeans.append(bias_tmean)
     scorr = xr.corr(model_tmean, ref_tmean, dim=['lon', 'lat'])

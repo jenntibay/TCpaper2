@@ -61,6 +61,12 @@ def plotCBAR(cbar_ax, label, norm, cmap='jet'):
                   aspect=30,)
     cb1.ax.tick_params(labelsize=10)
     cb1.set_label(label, fontsize=15)
+
+def calculate_relvort(da):
+    da_vort = mpcalc.vorticity(da['ua'].sel(plev=850), da['va'].sel(plev=850))
+    da_vort = da_vort.mean(dim='time')
+    da_vort = np.multiply(da_vort, 100000)
+    return da_vort
 #---------------------------------------------------------------------------------
 
 #---------------------------------------------------------------------------------
@@ -74,9 +80,7 @@ era5 = xr.open_dataset(dir / 'nc/merged_files/ERA5_20112015_remapbil.nc')
 ref = era5.drop(['lat', 'lon'])
 ref = era5.assign_coords({'lon': dsexp43.lon, 'lat': dsexp43.lat})
 #VORT
-ref_vort = mpcalc.vorticity(ref['ua'].sel(plev=850), ref['va'].sel(plev=850))
-ref_vort = ref_vort.mean(dim='time')
-ref_vort = np.multiply(ref_vort, 100000)
+ref_vort = calculate_relvort(ref)
 
 exps = ['exp43', #1
         'exp31', #2
@@ -103,9 +107,7 @@ for exp in tqdm(exps):
     print(f'calculating {exp} : VORT')
     ds = xr.open_dataset(dir / f'nc/merged_files/MERGED_{exp}_6hourly.nc')
     #VORT
-    model_vort = mpcalc.vorticity(ds['ua'].sel(plev=850), ds['va'].sel(plev=850))
-    model_vort = model_vort.mean(dim='time')
-    model_vort = np.multiply(model_vort, 100000)
+    model_vort = calculate_relvort(ds)
     bias_vort = model_vort - ref_vort
     bias_vorts.append(bias_vort)
     scorr = xr.corr(model_vort, ref_vort, dim=['lon', 'lat'])

@@ -1,6 +1,6 @@
 """
 Plot 5-year diffference of Top15 experiments from ERA5:
-b. 850-hPa Wind Speed
+a. MSLP
 
 Created on 02 Oct 2024
 by jtlopez
@@ -61,12 +61,6 @@ def plotCBAR(cbar_ax, label, norm, cmap='jet'):
                   aspect=30,)
     cb1.ax.tick_params(labelsize=10)
     cb1.set_label(label, fontsize=15)
-
-def calculate_winds(da):
-    da_ua850 = da['ua'].sel(plev=850).mean(dim='time')
-    da_va850 = da['va'].sel(plev=850).mean(dim='time')
-    da_wspd = np.sqrt(da_ua850**2 + da_va850**2)
-    return da_wspd
 #---------------------------------------------------------------------------------
 
 #---------------------------------------------------------------------------------
@@ -79,8 +73,8 @@ dsexp43 = xr.open_dataset(dir / 'nc/merged_files/MERGED_exp43_6hourly.nc')
 era5 = xr.open_dataset(dir / 'nc/merged_files/ERA5_20112015_remapbil.nc')
 ref = era5.drop(['lat', 'lon'])
 ref = era5.assign_coords({'lon': dsexp43.lon, 'lat': dsexp43.lat})
-#WINDSs
-ref_wspd = calculate_winds(ref)
+#MSLP
+ref_mslp = ref.mslp.mean(dim='time')
 
 exps = ['exp43', #1
         'exp31', #2
@@ -99,20 +93,20 @@ exps = ['exp43', #1
         'exp04' #15
         ]
 
-bias_winds = []
-scorr_winds = []
+bias_mslps = []
+scorr_mslps = []
 
 from tqdm import tqdm
 for exp in tqdm(exps):
     print(f'calculating {exp}')
     ds = xr.open_dataset(dir / f'nc/merged_files/MERGED_{exp}_6hourly.nc')
-    #WINDS
-    model_wspd = calculate_winds(ds)
-    bias_wind = model_wspd - ref_wspd
-    bias_winds.append(bias_wind)
-    scorr = xr.corr(model_wspd, ref_wspd, dim=['lon', 'lat'])
+    #MSLP
+    model_mslp = ds.mslp.mean(dim='time')
+    bias_mslp = model_mslp - ref_mslp
+    scorr = xr.corr(model_mslp, ref_mslp, dim=['lon', 'lat'])
     cc_val = "{:.2f}".format(scorr.values)
-    scorr_winds.append(cc_val)
+    scorr_mslps.append(cc_val)
+    bias_mslps.append(bias_mslp)
 #----------------------------------------------------------------------------------------
 
 #---------------------------------------------------------------------------------
@@ -124,13 +118,13 @@ mp.rcParams['axes.linewidth'] = 1
 mp.rcParams['xtick.labelsize'] = 8
 mp.rcParams['ytick.labelsize'] = 8
 
-WINDbias_colors = ["#579ca0", "#70bcbd", "#89c6c7", "#a4d0d1", '#c0dadb',
-                   '#ffffffff',
-                   "#debeaf", "#d59a9f", "#c86c8a", "#b82663", "#981d52"]
-cmapWIND = mp.colors.ListedColormap(WINDbias_colors, 11)
-vmin = -6
-vmax = 6
-normWIND = mcolors.Normalize(vmin=vmin, vmax=vmax)
+MSLPbias_colors = ["#2d004bff", "#5c3c82ff", "#927dacff", "#c9bed5ff", "#e4deeaff",
+                   "#ffffffff",
+                   "#f2e2deff", "#e5c4bdff", "#cc8a7aff", "#b24f38ff", "#a82e2aff"]
+cmapMSLP = mp.colors.ListedColormap(MSLPbias_colors, 11)
+vmin = -5
+vmax = 5
+normMSLP = mcolors.Normalize(vmin=vmin, vmax=vmax)
 
 letters = ['a', 'b', 'c', 'd', #1strow
            'e', 'f', 'g', 'h', #2ndrow
@@ -154,20 +148,20 @@ axList = [axs['A'], axs['B'], axs['C'], axs['D'],
           axs['E'], axs['F'], axs['G'], axs['H'],
           axs['I'], axs['J'], axs['K'], axs['L'],
           axs['M'], axs['N'], axs['O']]
-for exp, scorrData, biasData, ax, lList in zip(exps, scorr_winds, bias_winds, 
+for exp, scorrData, biasData, ax, lList in zip(exps, scorr_mslps, bias_mslps, 
                                                axList, letters):
     print(f'Plotting for {exp}')
-    plotDA(biasData, ax, f'{lList}) {exp} - ERA5 : Wind Speed', 
+    plotDA(biasData, ax, f'{lList}) {exp} - ERA5 : MSLP', 
            f'CC:{scorrData}', 
-           normWIND, cmap=cmapWIND, 
+           normMSLP, cmap=cmapMSLP, 
            transform=ccrs.PlateCarree())
 cbar_ax = fig.add_axes([0.775, .18, .21, .02])
-plotCBAR(cbar_ax, '850-hPa Wind Speed\nDifference [m/s]', normWIND, cmap=cmapWIND)
+plotCBAR(cbar_ax, 'MSLP Difference [hPa]', normMSLP, cmap=cmapMSLP)
 #---------------------------------------------------------------------------------
 
 #---------------------------------------------------------------------------------
 ### save Fig
-fig.savefig(dir / 'img/Fig06_winds_diff.png',
+fig.savefig(dir / 'img/Fig05_mslp_diff.png',
             transparent=True,
             bbox_inches='tight')
 #---------------------------------------------------------------------------------
