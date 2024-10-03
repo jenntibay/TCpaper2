@@ -66,6 +66,40 @@ def plotCBAR(axs, label, norm, cmap='jet'):
                   aspect=30,)
     cb1.ax.tick_params(labelsize=10)
     cb1.set_label(label, fontsize=10)
+  
+def calculate_winds(da):
+    da_ua850 = da['ua'].sel(plev=850).mean(dim='time')
+    da_va850 = da['va'].sel(plev=850).mean(dim='time')
+    da_wspd = np.sqrt(da_ua850**2 + da_va850**2)
+    return da_wspd
+
+def calculate_relvort(da):
+    da_vort = mpcalc.vorticity(da['ua'].sel(plev=850), da['va'].sel(plev=850))
+    da_vort = da_vort.mean(dim='time')
+    da_vort = np.multiply(da_vort, 100000)
+    return da_vort
+
+def calculate_whsear(da):
+    da_ua850 = da['ua'].sel(plev=850).mean(dim='time')
+    da_va850 = da['va'].sel(plev=850).mean(dim='time')
+    da_ua300 = da['ua'].sel(plev=300).mean(dim='time')
+    da_va300 = da['va'].sel(plev=300).mean(dim='time')
+    da_ushear = da_ua300 - da_ua850
+    da_vshear = da_va300 - da_va850
+    da_wshear = np.sqrt(da_ushear**2 + da_vshear**2)
+    return da_wshear
+
+def calculate_tmean(da):
+    da_ta850 = da['ta'].sel(plev=850).mean(dim='time')
+    da_ta850 = np.subtract(da_ta850, 273.15)
+    da_ta700 = da['ta'].sel(plev=700).mean(dim='time')
+    da_ta700 = np.subtract(da_ta700, 273.15)
+    da_ta500 = da['ta'].sel(plev=500).mean(dim='time')
+    da_ta500 = np.subtract(da_ta500, 273.15)
+    da_ta300 = da['ta'].sel(plev=300).mean(dim='time')
+    da_ta300 = np.subtract(da_ta300, 273.15)
+    da_tmean = (da_ta850 + da_ta700 + da_ta500 + da_ta300)/4
+    return da_tmean
 #---------------------------------------------------------------------------------
 
 #---------------------------------------------------------------------------------
@@ -81,29 +115,13 @@ ref = era5.assign_coords({'lon': dsexp43.lon, 'lat': dsexp43.lat})
 #MSLP
 ref_mslp = ref.mslp.mean(dim='time')
 #WIND
-ref_ua850 = ref['ua'].sel(plev=850).mean(dim='time')
-ref_va850 = ref['va'].sel(plev=850).mean(dim='time')
-ref_wspd = np.sqrt(ref_ua850**2 + ref_va850**2)
+ref_wspd = calculate_winds(ref)
 #VORT
-ref_vort = mpcalc.vorticity(ref['ua'].sel(plev=850), ref['va'].sel(plev=850))
-ref_vort = ref_vort.mean(dim='time')
-ref_vort = np.multiply(ref_vort, 100000)
+ref_vort = calculate_relvort(ref)
 #WHSEAR
-ref_ua300 = ref['ua'].sel(plev=300).mean(dim='time')
-ref_va300 = ref['va'].sel(plev=300).mean(dim='time')
-ref_ushear = ref_ua300 - ref_ua850
-ref_vshear = ref_va300 - ref_va850
-ref_wshear = np.sqrt(ref_ushear**2 + ref_vshear**2)
+ref_wshear = calculate_whsear(ref)
 #TEMP
-ref_ta850 = ref['ta'].sel(plev=850).mean(dim='time')
-ref_ta850 = np.subtract(ref_ta850, 273.15)
-ref_ta700 = ref['ta'].sel(plev=700).mean(dim='time')
-ref_ta700 = np.subtract(ref_ta700, 273.15)
-ref_ta500 = ref['ta'].sel(plev=500).mean(dim='time')
-ref_ta500 = np.subtract(ref_ta500, 273.15)
-ref_ta300 = ref['ta'].sel(plev=300).mean(dim='time')
-ref_ta300 = np.subtract(ref_ta300, 273.15)
-ref_tmean = (ref_ta850 + ref_ta700 + ref_ta500 + ref_ta300)/4
+ref_tmean = calculate_tmean(ref)
 
 
 ## EXPs
@@ -140,9 +158,7 @@ for exp in tqdm(exps):
     bias_mslps.append(bias_mslp)
     #WIND
     print(f'calculating {exp} : WIND')
-    model_ua850 = ds['ua'].sel(plev=850).mean(dim='time')
-    model_va850 = ds['va'].sel(plev=850).mean(dim='time')
-    model_wspd = np.sqrt(model_ua850**2 + model_va850**2)
+    model_wspd = calculate_winds(ds)
     bias_wind = model_wspd - ref_wspd
     bias_winds.append(bias_wind)
     scorr = xr.corr(model_wspd, ref_wspd, dim=['lon', 'lat'])
@@ -150,9 +166,7 @@ for exp in tqdm(exps):
     scorr_winds.append(cc_val)
     #VORT
     print(f'calculating {exp} : VORT')
-    model_vort = mpcalc.vorticity(ds['ua'].sel(plev=850), ds['va'].sel(plev=850))
-    model_vort = model_vort.mean(dim='time')
-    model_vort = np.multiply(model_vort, 100000)
+    model_vort = calculate_relvort(ds)
     bias_vort = model_vort - ref_vort
     bias_vorts.append(bias_vort)
     scorr = xr.corr(model_vort, ref_vort, dim=['lon', 'lat'])
@@ -160,11 +174,7 @@ for exp in tqdm(exps):
     scorr_vorts.append(cc_val)
     #WSHEAR
     print(f'calculating {exp} : WSHEAR')
-    model_ua300 = ds['ua'].sel(plev=300).mean(dim='time')
-    model_va300 = ds['va'].sel(plev=300).mean(dim='time')
-    model_ushear = model_ua300 - model_ua850
-    model_vshear = model_va300 - model_va850
-    model_wshear= np.sqrt(model_ushear**2 + model_vshear**2)
+    model_wshear= calculate_whsear(ds)
     bias_wshear = model_wshear - ref_wshear
     bias_wshears.append(bias_wshear)
     scorr = xr.corr(model_wshear, ref_wshear, dim=['lon', 'lat'])
@@ -172,15 +182,7 @@ for exp in tqdm(exps):
     scorr_wshears.append(cc_val)
     #TEMP
     print(f'calculating {exp} : TEMP')
-    model_ta850 = ds['ta'].sel(plev=850).mean(dim='time')
-    model_ta850 = np.subtract(model_ta850, 273.15)
-    model_ta700 = ds['ta'].sel(plev=700).mean(dim='time')
-    model_ta700 = np.subtract(model_ta700, 273.15)
-    model_ta500 = ds['ta'].sel(plev=500).mean(dim='time')
-    model_ta500 = np.subtract(model_ta500, 273.15)
-    model_ta300 = ds['ta'].sel(plev=300).mean(dim='time')
-    model_ta300 = np.subtract(model_ta300, 273.15)
-    model_tmean = (model_ta850 + model_ta700 + model_ta500 + model_ta300)/4
+    model_tmean = calculate_tmean(ds)
     bias_tmean = model_tmean - ref_tmean
     bias_tmeans.append(bias_tmean)
     scorr = xr.corr(model_tmean, ref_tmean, dim=['lon', 'lat'])
