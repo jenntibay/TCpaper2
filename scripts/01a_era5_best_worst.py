@@ -1,11 +1,12 @@
 """
-Plot 5-year diffference of Best, Worst experiments from ERA5:
-a. MSLP
-b. 850-hPa Wind Speed
-c. 850-hPa Relative Vorticity
-d. 300 - 850-hPa Wind Shear
-e. Mean Temperature, averaged over four levels 
-   (8850-, 700-, 500- and 300-hPa)
+Plot 5-year:
+	a. MSLP
+	b. 850-hPa Wind Speed
+	c. 850-hPa Relative Vorticity
+	d. 300 - 850-hPa Wind Shear
+	e. Mean Temperature, averaged over four levels 
+   	   (8850-, 700-, 500- and 300-hPa)
+of ERA5, difference of BEST and WORST experiments with ERA5
 
 Created on 08 Oct 2024
 by jtlopez
